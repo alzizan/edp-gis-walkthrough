@@ -222,7 +222,7 @@ Budi dan setiap panggilan API peta (`gateway_data_access`).
 
 ## Coba Sendiri
 
-- Trial gratis 14 hari, tanpa sales call: https://alzizan.co.id/register
+- Trial gratis, tanpa sales call: https://alzizan.co.id/register
 - Mau lihat dengan kasus tim Anda? Minta demo, atau sesi in-house gratis *Big Data & AI Tech Update* di kantor Anda: https://alzizan.co.id/id/demo
 - Demo video: https://www.youtube.com/@AlzizanDigitalSolutions
 
