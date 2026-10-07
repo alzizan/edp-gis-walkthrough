@@ -1,0 +1,8 @@
+{
+  "gateway_url": "https://gateway.perusahaan-anda.example",
+  "layers": [
+    {"id": "kelurahan-rentan", "label": "Kelurahan & Warga Rentan", "description": "Jumlah warga rentan di zona banjir per kelurahan", "path": "peta-kelurahan-rentan", "apikey": "<API key>"},
+    {"id": "zona-banjir", "label": "Zona Banjir", "description": "Zona rawan banjir", "path": "peta-zona-banjir", "apikey": "<API key>"},
+    {"id": "puskesmas", "label": "Puskesmas", "description": "Puskesmas & kapasitas pengungsi", "path": "peta-puskesmas", "apikey": "<API key>"}
+  ]
+}

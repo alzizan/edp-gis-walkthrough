@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peta Kesiapsiagaan Banjir</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --bg: #f1f5f9; --panel: #ffffff; --text: #0f172a; --muted: #64748b; --border: #e2e8f0; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #020617; --panel: #0f172a; --text: #e2e8f0; --muted: #94a3b8; --border: #1e293b; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  .app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--border); padding: 18px 16px; overflow-y: auto; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  p.sub { font-size: 12px; color: var(--muted); margin: 0 0 16px; }
+  .layer { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .layer small { display: block; color: var(--muted); }
+  .legend { margin-top: 16px; font-size: 12px; }
+  .legend div { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #0003; }
+  .stat { margin-top: 16px; font-size: 13px; }
+  .stat b { font-size: 20px; display: block; }
+  .error { color: #dc2626; font-size: 12px; margin-top: 8px; white-space: pre-wrap; }
+  #map { height: 100%; }
+  @media (max-width: 720px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100dvh; }
+    aside { border-right: 0; border-bottom: 1px solid var(--border); max-height: 40dvh; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1>Peta Kesiapsiagaan Banjir</h1>
+    <p class="sub">Kota Sentosa (data fiktif). Data diambil dari API Gateway; lokasi warga tidak pernah dikirim, hanya jumlah per kelurahan.</p>
+    <div id="layers"></div>
+    <div class="legend">
+      <div><span class="sw" style="background:#fee2e2"></span>0 warga rentan terdampak</div>
+      <div><span class="sw" style="background:#fca5a5"></span>1–2</div>
+      <div><span class="sw" style="background:#ef4444"></span>3 atau lebih</div>
+      <div><span class="sw" style="background:#7c3aed;opacity:.5"></span>Zona banjir tinggi</div>
+      <div><span class="sw" style="background:#f59e0b;opacity:.5"></span>Zona banjir sedang</div>
+      <div><span class="sw" style="background:#16a34a;border-radius:50%"></span>Puskesmas</div>
+    </div>
+    <div class="stat" id="stat"></div>
+    <div class="error" id="error"></div>
+  </aside>
+  <div id="map"></div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map("map").setView([-6.22, 106.82], 14);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
+}).addTo(map);
+
+const escapeHtml = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const shade = (n) => (n >= 3 ? "#ef4444" : n >= 1 ? "#fca5a5" : "#fee2e2");
+
+// One renderer per layer id: records come straight from the API Gateway (each has a `geojson` text column).
+const RENDER = {
+  "kelurahan-rentan": (records) => L.layerGroup(records.map((r) =>
+    L.geoJSON(JSON.parse(r.geojson), { style: { color: "#334155", weight: 1, fillColor: shade(r.warga_rentan_di_zona_banjir), fillOpacity: 0.55 } })
+      .bindPopup(`<b>${escapeHtml(r.kelurahan)}</b><br>Penduduk: ${Number(r.jumlah_penduduk).toLocaleString("id-ID")}<br>Warga rentan di zona banjir: <b>${r.warga_rentan_di_zona_banjir}</b>`))),
+  "zona-banjir": (records) => L.layerGroup(records.map((r) =>
+    L.geoJSON(JSON.parse(r.geojson), { style: { color: r.tingkat === "tinggi" ? "#7c3aed" : "#f59e0b", weight: 2, dashArray: "4", fillOpacity: 0.25 } })
+      .bindPopup(`<b>Zona ${escapeHtml(r.tingkat)}</b><br>${escapeHtml(r.keterangan)}`))),
+  "puskesmas": (records) => L.layerGroup(records.map((r) => {
+    const [lon, lat] = JSON.parse(r.geojson).coordinates;
+    return L.circleMarker([lat, lon], { radius: 8, color: "#14532d", fillColor: "#16a34a", fillOpacity: 0.9 })
+      .bindPopup(`<b>${escapeHtml(r.nama)}</b><br>Kapasitas pengungsi: ${r.kapasitas_pengungsi}`);
+  })),
+};
+
+async function loadLayer(layer, box) {
+  const response = await fetch(`/api/layer/${layer.id}`);
+  const body = await response.json();
+  if (!response.ok) throw new Error(`${layer.label}: ${body.error}`);
+  const group = (RENDER[layer.id] || (() => L.layerGroup()))(body.records).addTo(map);
+  box.onchange = () => (box.checked ? group.addTo(map) : map.removeLayer(group));
+  if (layer.id === "kelurahan-rentan") {
+    const total = body.records.reduce((s, r) => s + r.warga_rentan_di_zona_banjir, 0);
+    document.getElementById("stat").innerHTML = `<b>${total}</b>warga rentan berada di zona banjir`;
+  }
+}
+
+fetch("/api/layers").then((r) => r.json()).then(async ({ layers }) => {
+  const host = document.getElementById("layers");
+  for (const layer of layers) {
+    const row = document.createElement("label");
+    row.className = "layer";
+    row.innerHTML = `<input type="checkbox" checked><span>${escapeHtml(layer.label)}<small>${escapeHtml(layer.description)}</small></span>`;
+    host.appendChild(row);
+    try { await loadLayer(layer, row.querySelector("input")); }
+    catch (err) { document.getElementById("error").textContent += err.message + "\n"; }
+  }
+});
+</script>
+</body>
+</html>
