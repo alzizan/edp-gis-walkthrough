@@ -1,5 +1,7 @@
 # Walkthrough — Peta Kesiapsiagaan Banjir: Data GIS dari PostGIS sampai Peta, dengan Lokasi Warga Tetap Terlindungi
 
+**Bahasa:** Bahasa Indonesia · [English](README.en.md)
+
 Enterprise Data Platform membaca data peta dari PostGIS, menganalisisnya dengan SQL spasial,
 menyimpannya di Lakehouse sebagai GeoJSON ber-versi, lalu menyajikannya ke aplikasi peta lewat API —
 sambil menjaga lokasi warga sebagai data pribadi (UU PDP). Semua angka, query, dan screenshot di
